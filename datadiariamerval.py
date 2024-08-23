@@ -61,8 +61,14 @@ for ticker in tickers:
 df = pd.DataFrame.from_dict(data, orient='index').reset_index()
 df.rename(columns={"index": "Ticker"}, inplace=True)
 
-# Debugging: Print the DataFrame to check the data
+# Debugging: Check for missing data
+print("Missing Data:\n", df.isnull().sum())
+
+# Debugging: Print the DataFrame structure
 print(df.head())
+
+# Check data types
+print(df.dtypes)
 
 # Plotting
 sns.set(style="whitegrid")
