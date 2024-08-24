@@ -6,6 +6,23 @@ import numpy as np
 import datetime as dt
 import squarify
 import streamlit as st
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+from matplotlib import cm
+import matplotlib.colors as mcolors
+
+# Set Seaborn style
+sns.set_style('whitegrid')
+
+# Function to format large numbers
+def format_large_numbers(num):
+    if abs(num) >= 1_000_000_000:
+        return f"{num/1_000_000_000:.2f}B"
+    elif abs(num) >= 1_000_000:
+        return f"{num/1_000_000:.2f}M"
+    elif abs(num) >= 1_000:
+        return f"{num/1_000:.2f}K"
+    else:
+        return f"{num:.2f}"
 
 # List of tickers
 tickers = [
@@ -16,7 +33,7 @@ tickers = [
     "HARG.BA", "GCLA.BA", "SAMI.BA", "BOLT.BA", "MOLA.BA", "CAPX.BA", "OEST.BA", "LONG.BA", "GCDI.BA",
     "GBAN.BA", "CELU.BA", "FERR.BA", "CADO.BA", "GAMI.BA", "PATA.BA", "CARC.BA", "BPAT.BA", "RICH.BA",
     "INTR.BA", "GARO.BA", "FIPL.BA", "GRIM.BA", "DYCA.BA", "POLL.BA", "DGCE.BA", "DOME.BA", "ROSE.BA",
-    "RIGO.BA", "MTR.BA", "^MERV"
+    "RIGO.BA", "MTR.BA"
 ]
 
 # Shares outstanding data
@@ -41,68 +58,180 @@ shares_outstanding = {
 }
 
 # Function to fetch data for a given date and the previous trading day
+@st.cache_data(ttl=3600)
 def fetch_data(tickers, start_date):
     data = {}
     for ticker in tickers:
-        # Fetch data
-        stock_data = yf.Ticker(ticker)
-        df = stock_data.history(start=start_date - dt.timedelta(days=30), end=start_date + dt.timedelta(days=1))
-        df = df.dropna()
-
-        # Ensure we have at least 2 days of data
-        if len(df) < 2:
-            print(f"Not enough data for {ticker}")
+        try:
+            # Fetch data
+            stock_data = yf.Ticker(ticker)
+            df = stock_data.history(start=start_date - dt.timedelta(days=10), end=start_date + dt.timedelta(days=1))
+            df = df.dropna()
+    
+            # Ensure we have at least 2 days of data
+            if len(df) < 2:
+                continue
+            
+            # Select the latest two days (the selected day and the previous trading day)
+            latest_data = df.iloc[-1]
+            previous_data = df.iloc[-2]
+            
+            # Calculate percentage price variation
+            price_variation = (latest_data['Close'] - previous_data['Close']) / previous_data['Close'] * 100
+            
+            data[ticker] = {
+                'latest': latest_data,
+                'previous': previous_data,
+                'price_variation': price_variation,
+                'outstanding_shares': shares_outstanding.get(ticker, np.nan)
+            }
+        except Exception as e:
+            print(f"Error fetching data for {ticker}: {e}")
             continue
-        
-        # Select the latest two days (the selected day and the previous trading day)
-        latest_data = df.iloc[-1]
-        previous_data = df.iloc[-2]
-        
-        # Calculate percentage price variation
-        price_variation = (latest_data['Close'] - previous_data['Close']) / previous_data['Close'] * 100
-        
-        data[ticker] = {
-            'latest': latest_data,
-            'previous': previous_data,
-            'price_variation': price_variation,
-            'outstanding_shares': shares_outstanding.get(ticker, np.nan)
-        }
     return data
 
+# Streamlit: User selects a date
+st.title("📈 Stock Data Analysis Dashboard")
+
+st.sidebar.header("User Inputs")
+
+selected_date = st.sidebar.date_input(
+    "Select Date",
+    dt.datetime.now().date() - dt.timedelta(days=1),
+    max_value=dt.datetime.now().date() - dt.timedelta(days=1)
+)
+
 # Fetch the data
-start_date = dt.datetime(2024, 8, 22)  # Example date
-data = fetch_data(tickers, start_date)
+with st.spinner('Fetching data...'):
+    data = fetch_data(tickers, selected_date)
 
-# Create the plots
-def create_bubble_chart(x, y, size, xlabel, ylabel, title):
-    plt.figure(figsize=(12, 8))
-    sns.scatterplot(x=x, y=y, size=size, sizes=(20, 2000), alpha=0.5, legend=False, color='blue')
-    plt.title(title)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.grid(True)
-    st.pyplot(plt)  # Display the plot in Streamlit
+if not data:
+    st.error("No data available for the selected date. Please choose a different date.")
+    st.stop()
 
-# Plot: Bubble chart with volume * price vs. price variation
-price_variation = [d['price_variation'] for d in data.values()]
-volume_price = [d['latest']['Volume'] * d['latest']['Close'] for d in data.values()]
-create_bubble_chart(price_variation, volume_price, volume_price, 'Price Variation (%)', 'Volume * Price', 'Volume * Price vs. Price Variation')
+# Function to create a bubble chart with enhanced visuals
+def create_bubble_chart(x, y, size, labels, xlabel, ylabel, title, color_var=None):
+    plt.figure(figsize=(14, 10))
+    norm = plt.Normalize(min(size), max(size))
+    cmap = cm.get_cmap('viridis')
 
-# Plot: Bubble chart with open price vs. latest price
-open_price = [d['latest']['Open'] for d in data.values()]
-latest_price = [d['latest']['Close'] for d in data.values()]
-create_bubble_chart(latest_price, open_price, open_price, 'Latest Price', 'Open Price', 'Open Price vs. Latest Price')
+    scatter = plt.scatter(
+        x, y,
+        s=[(s / max(size)) * 2000 + 100 for s in size],  # Adjust size scaling
+        c=color_var if color_var else size,
+        cmap='viridis',
+        alpha=0.7,
+        edgecolors='black',
+        linewidth=0.5
+    )
 
-# Plot: Bubble chart with minimum price vs. maximum price
-min_price = [d['latest']['Low'] for d in data.values()]
-max_price = [d['latest']['High'] for d in data.values()]
-create_bubble_chart(max_price, min_price, max_price, 'Max Price', 'Min Price', 'Min Price vs. Max Price')
+    # Add colorbar
+    cbar = plt.colorbar(scatter)
+    cbar.set_label('Value')
 
-# Plot: Treemap with shares outstanding * price
-sizes = [d['latest']['Close'] * d['outstanding_shares'] for d in data.values()]
-labels = [f"{ticker}\n{d['latest']['Close'] * d['outstanding_shares']:,.0f}" for ticker, d in data.items()]
-plt.figure(figsize=(12, 8))
-squarify.plot(sizes=sizes, label=labels, alpha=.8)
-plt.title('Treemap of Market Value (Shares Outstanding * Price)')
+    # Add annotations
+    for i, label in enumerate(labels):
+        plt.annotate(
+            label,
+            (x[i], y[i]),
+            textcoords="offset points",
+            xytext=(0, 10),
+            ha='center',
+            fontsize=9,
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", alpha=0.7)
+        )
+
+    plt.title(title, fontsize=16)
+    plt.xlabel(xlabel, fontsize=14)
+    plt.ylabel(ylabel, fontsize=14)
+    plt.grid(True, linestyle='--', alpha=0.5)
+    st.pyplot(plt)
+    plt.close()
+
+# Prepare data for plots
+df = pd.DataFrame({
+    'Ticker': list(data.keys()),
+    'Price Variation (%)': [d['price_variation'] for d in data.values()],
+    'Volume': [d['latest']['Volume'] for d in data.values()],
+    'Latest Price': [d['latest']['Close'] for d in data.values()],
+    'Open Price': [d['latest']['Open'] for d in data.values()],
+    'Min Price': [d['latest']['Low'] for d in data.values()],
+    'Max Price': [d['latest']['High'] for d in data.values()],
+    'Market Value': [d['latest']['Close'] * d['outstanding_shares'] for d in data.values()]
+})
+
+# Format large numbers in dataframe
+df['Volume (formatted)'] = df['Volume'].apply(format_large_numbers)
+df['Market Value (formatted)'] = df['Market Value'].apply(format_large_numbers)
+
+# Bubble Chart: Volume * Price vs. Price Variation
+st.subheader("📊 Volume * Price vs. Price Variation")
+df['Volume * Price'] = df['Volume'] * df['Latest Price']
+df['Volume * Price (formatted)'] = df['Volume * Price'].apply(format_large_numbers)
+
+create_bubble_chart(
+    x=df['Price Variation (%)'],
+    y=df['Volume * Price'],
+    size=df['Volume * Price'],
+    labels=df['Ticker'],
+    xlabel='Price Variation (%)',
+    ylabel='Volume * Price',
+    title='Volume * Price vs. Price Variation',
+    color_var=df['Price Variation (%)']
+)
+
+# Bubble Chart: Open Price vs. Latest Price
+st.subheader("📊 Open Price vs. Latest Price")
+
+create_bubble_chart(
+    x=df['Latest Price'],
+    y=df['Open Price'],
+    size=df['Market Value'],
+    labels=df['Ticker'],
+    xlabel='Latest Price',
+    ylabel='Open Price',
+    title='Open Price vs. Latest Price',
+    color_var=df['Market Value']
+)
+
+# Bubble Chart: Min Price vs. Max Price
+st.subheader("📊 Min Price vs. Max Price")
+
+create_bubble_chart(
+    x=df['Max Price'],
+    y=df['Min Price'],
+    size=df['Volume'],
+    labels=df['Ticker'],
+    xlabel='Max Price',
+    ylabel='Min Price',
+    title='Min Price vs. Max Price',
+    color_var=df['Volume']
+)
+
+# Treemap: Market Value
+st.subheader("🗺️ Treemap of Market Value")
+
+# Sort data for better visualization
+df_treemap = df.sort_values('Market Value', ascending=False)
+
+sizes = df_treemap['Market Value']
+labels = df_treemap.apply(lambda x: f"{x['Ticker']}\n{format_large_numbers(x['Market Value'])}", axis=1)
+colors = [cm.viridis(norm) for norm in np.linspace(0, 1, len(sizes))]
+
+plt.figure(figsize=(18, 12))
+squarify.plot(
+    sizes=sizes,
+    label=labels,
+    color=colors,
+    alpha=0.8,
+    text_kwargs={'fontsize':12, 'weight':'bold', 'color':'white'}
+)
+plt.title('Treemap of Market Value (Shares Outstanding * Price)', fontsize=18)
 plt.axis('off')
-st.pyplot(plt)  # Display the plot in Streamlit
+st.pyplot(plt)
+plt.close()
+
+# Display Data Table
+st.subheader("📄 Detailed Data Table")
+st.dataframe(df[['Ticker', 'Price Variation (%)', 'Volume (formatted)', 'Latest Price', 'Open Price',
+                 'Min Price', 'Max Price', 'Market Value (formatted)']].set_index('Ticker'))
