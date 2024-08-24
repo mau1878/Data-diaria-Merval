@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import datetime as dt
+import squarify
+import streamlit as st
 
 # List of tickers
 tickers = [
@@ -79,7 +81,7 @@ def create_bubble_chart(x, y, size, xlabel, ylabel, title):
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.grid(True)
-    plt.show()
+    st.pyplot(plt)  # Display the plot in Streamlit
 
 # Plot: Bubble chart with volume * price vs. price variation
 price_variation = [d['price_variation'] for d in data.values()]
@@ -97,12 +99,10 @@ max_price = [d['latest']['High'] for d in data.values()]
 create_bubble_chart(max_price, min_price, max_price, 'Max Price', 'Min Price', 'Min Price vs. Max Price')
 
 # Plot: Treemap with shares outstanding * price
-import squarify
-
 sizes = [d['latest']['Close'] * d['outstanding_shares'] for d in data.values()]
 labels = [f"{ticker}\n{d['latest']['Close'] * d['outstanding_shares']:,.0f}" for ticker, d in data.items()]
 plt.figure(figsize=(12, 8))
-squarify.plot(sizes=sizes, label=labels, alpha=0.8)
-plt.title('Treemap: Market Value (Shares Outstanding * Price)')
+squarify.plot(sizes=sizes, label=labels, alpha=.8)
+plt.title('Treemap of Market Value (Shares Outstanding * Price)')
 plt.axis('off')
-plt.show()
+st.pyplot(plt)  # Display the plot in Streamlit
