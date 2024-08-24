@@ -6,7 +6,7 @@ import numpy as np
 import datetime as dt
 import squarify
 import streamlit as st
-from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import FuncFormatter, LogLocator, LogFormatter
 
 # List of tickers
 tickers = [
@@ -102,9 +102,12 @@ def format_large_number(num):
     else:
         return str(num)
 
-# Function to create a bubble chart with different colors and labels
+# Function to create a bubble chart with logarithmic scale and adjusted bubble sizes
 def create_bubble_chart(x, y, size, labels, xlabel, ylabel, title):
     plt.figure(figsize=(14, 10))
+    
+    # Normalize bubble sizes for better visualization
+    size = np.log1p(size) * 100  # Apply log1p transformation and scale
     
     # Generate a scatter plot with varying bubble colors
     cmap = plt.get_cmap("viridis")
@@ -127,7 +130,16 @@ def create_bubble_chart(x, y, size, labels, xlabel, ylabel, title):
     plt.title(title, fontsize=16)
     plt.xlabel(xlabel, fontsize=14)
     plt.ylabel(ylabel, fontsize=14)
-    plt.grid(True)
+    
+    # Apply logarithmic scale to axes
+    plt.xscale('log')
+    plt.yscale('log')
+    
+    plt.grid(True, which="both", ls="--")
+    plt.gca().xaxis.set_major_locator(LogLocator(base=10.0, numticks=10))
+    plt.gca().xaxis.set_major_formatter(LogFormatter())
+    plt.gca().yaxis.set_major_locator(LogLocator(base=10.0, numticks=10))
+    plt.gca().yaxis.set_major_formatter(LogFormatter())
     
     # Formatter for large numbers
     plt.gca().xaxis.set_major_formatter(FuncFormatter(lambda x, _: format_large_number(x)))
@@ -135,18 +147,19 @@ def create_bubble_chart(x, y, size, labels, xlabel, ylabel, title):
     
     st.pyplot(plt)  # Display the plot in Streamlit
 
-# Prepare data for the bubble chart
+# Prepare data for the bubble charts
+
+# 1. Volume * Price vs. Price Variation
 price_variation = [d['price_variation'] for d in data.values()]
 volume_price = [d['latest']['Volume'] * d['latest']['Close'] for d in data.values()]
 labels = list(data.keys())
 
-# Ensure that data is consistent
 if len(price_variation) == len(volume_price) == len(labels):
     create_bubble_chart(price_variation, volume_price, volume_price, labels, 'Price Variation (%)', 'Volume * Price', 'Volume * Price vs. Price Variation')
 else:
     st.error("Data lengths do not match. Please check the data fetching process.")
 
-# Prepare data for the bubble chart
+# 2. Latest Price vs. Open Price
 open_price = [d['latest']['Open'] for d in data.values()]
 latest_price = [d['latest']['Close'] for d in data.values()]
 
@@ -158,9 +171,7 @@ if len(open_price) == len(latest_price) == len(labels):
 else:
     st.error("Data lengths for Open Price and Latest Price do not match. Please check the data.")
 
-
-# Plot: Bubble chart with minimum price vs. maximum price
-# Prepare data for the bubble chart
+# 3. Min Price vs. Max Price
 min_price = [d['latest']['Low'] for d in data.values()]
 max_price = [d['latest']['High'] for d in data.values()]
 
@@ -171,7 +182,6 @@ if len(min_price) == len(max_price) == len(labels):
         st.error(f"Error creating Min Price vs. Max Price chart: {e}")
 else:
     st.error("Data lengths for Min Price and Max Price do not match. Please check the data.")
-
 
 # Plot: Treemap with shares outstanding * price
 # Prepare data for the treemap
