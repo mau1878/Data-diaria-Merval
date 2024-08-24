@@ -6,7 +6,7 @@ import numpy as np
 import datetime as dt
 import streamlit as st
 
-# List of tickers and shares outstanding data (same as provided)
+# List of tickers and shares outstanding data
 tickers = [
     "GGAL.BA", "YPFD.BA", "PAMP.BA", "TXAR.BA", "ALUA.BA", "CRES.BA", "SUPV.BA", "CEPU.BA", "BMA.BA",
     "TGSU2.BA", "TRAN.BA", "EDN.BA", "LOMA.BA", "MIRG.BA", "DGCU2.BA", "BBAR.BA", "MOLI.BA", "TGNO4.BA",
@@ -18,7 +18,7 @@ tickers = [
     "RIGO.BA", "MTR.BA"
 ]
 
-# Shares outstanding data (same as provided)
+# Shares outstanding data
 shares_outstanding = {
     "GGAL.BA": 1193470439, "YPFD.BA": 393312793.1, "PAMP.BA": 1383644606, "TXAR.BA": 4517094019,
     "ALUA.BA": 2800000000, "CRES.BA": 592172573.1, "SUPV.BA": 394984130.2, "CEPU.BA": 1514022252,
@@ -61,10 +61,7 @@ def fetch_data(tickers, start_date):
         price_variation = (latest_data['Close'] - previous_data['Close']) / previous_data['Close'] * 100
         
         data[ticker] = {
-            'latest': latest_data,
-            'previous': previous_data,
             'price_variation': price_variation,
-            'outstanding_shares': shares_outstanding.get(ticker, np.nan),
             'max_min_diff': (latest_data['High'] - latest_data['Low']) / latest_data['Low'] * 100,
             'close_open_diff': (latest_data['Close'] - latest_data['Open']) / latest_data['Open'] * 100
         }
@@ -85,7 +82,7 @@ except Exception as e:
 def clean_data(data):
     clean_data = {}
     for ticker, d in data.items():
-        if not np.isnan(d['price_variation']) and not np.isnan(d['latest']['Volume']) and not np.isnan(d['latest']['Close']):
+        if not np.isnan(d['price_variation']):
             clean_data[ticker] = d
     return clean_data
 
@@ -93,10 +90,12 @@ data = clean_data(data)
 
 # Function to create bar plots
 def create_bar_plot(data, metric, title):
-    sorted_data = sorted(data.items(), key=lambda x: x[1][metric], reverse=True)
-    tickers, values = zip(*sorted_data)
+    # Convert data to DataFrame for easy plotting
+    df = pd.DataFrame(data).T
+    df = df.sort_values(by=metric, ascending=False)
+    
     plt.figure(figsize=(12, 8))
-    sns.barplot(x=list(values), y=list(tickers), palette="viridis")
+    sns.barplot(x=df[metric], y=df.index, palette="viridis")
     plt.title(title, fontsize=16)
     plt.xlabel(f'{metric} (%)', fontsize=14)
     plt.ylabel('Ticker', fontsize=14)
