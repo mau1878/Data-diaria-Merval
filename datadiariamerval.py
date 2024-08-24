@@ -75,7 +75,21 @@ st.title("Stock Data Analysis")
 selected_date = st.date_input("Choose a date", dt.datetime(2024, 8, 22))
 
 # Fetch the data
-data = fetch_data(tickers, selected_date)
+try:
+    data = fetch_data(tickers, selected_date)
+except Exception as e:
+    st.error(f"Error fetching data: {e}")
+    st.stop()
+
+# Check for missing or non-numeric data
+def clean_data(data):
+    clean_data = {}
+    for ticker, d in data.items():
+        if not np.isnan(d['price_variation']) and not np.isnan(d['latest']['Volume']) and not np.isnan(d['latest']['Close']):
+            clean_data[ticker] = d
+    return clean_data
+
+data = clean_data(data)
 
 # Function to format large numbers (e.g., 1,000 as 1K, 1,000,000 as 1M)
 def format_large_number(num):
@@ -126,24 +140,49 @@ price_variation = [d['price_variation'] for d in data.values()]
 volume_price = [d['latest']['Volume'] * d['latest']['Close'] for d in data.values()]
 labels = list(data.keys())
 
-# Plot: Bubble chart with volume * price vs. price variation
-create_bubble_chart(price_variation, volume_price, volume_price, labels, 'Price Variation (%)', 'Volume * Price', 'Volume * Price vs. Price Variation')
+# Ensure that data is consistent
+if len(price_variation) == len(volume_price) == len(labels):
+    create_bubble_chart(price_variation, volume_price, volume_price, labels, 'Price Variation (%)', 'Volume * Price', 'Volume * Price vs. Price Variation')
+else:
+    st.error("Data lengths do not match. Please check the data fetching process.")
 
-# Plot: Bubble chart with open price vs. latest price
+# Prepare data for the bubble chart
 open_price = [d['latest']['Open'] for d in data.values()]
 latest_price = [d['latest']['Close'] for d in data.values()]
-create_bubble_chart(latest_price, open_price, open_price, 'Latest Price', 'Open Price', 'Open Price vs. Latest Price')
+
+if len(open_price) == len(latest_price) == len(labels):
+    try:
+        create_bubble_chart(latest_price, open_price, open_price, labels, 'Latest Price', 'Open Price', 'Open Price vs. Latest Price')
+    except Exception as e:
+        st.error(f"Error creating Open Price vs. Latest Price chart: {e}")
+else:
+    st.error("Data lengths for Open Price and Latest Price do not match. Please check the data.")
+
 
 # Plot: Bubble chart with minimum price vs. maximum price
+# Prepare data for the bubble chart
 min_price = [d['latest']['Low'] for d in data.values()]
 max_price = [d['latest']['High'] for d in data.values()]
-create_bubble_chart(max_price, min_price, max_price, 'Max Price', 'Min Price', 'Min Price vs. Max Price')
+
+if len(min_price) == len(max_price) == len(labels):
+    try:
+        create_bubble_chart(max_price, min_price, max_price, labels, 'Max Price', 'Min Price', 'Min Price vs. Max Price')
+    except Exception as e:
+        st.error(f"Error creating Min Price vs. Max Price chart: {e}")
+else:
+    st.error("Data lengths for Min Price and Max Price do not match. Please check the data.")
+
 
 # Plot: Treemap with shares outstanding * price
+# Prepare data for the treemap
 sizes = [d['latest']['Close'] * d['outstanding_shares'] for d in data.values()]
-labels = [f"{ticker}\n{d['latest']['Close'] * d['outstanding_shares']:,.0f}" for ticker, d in data.items()]
-plt.figure(figsize=(12, 8))
-squarify.plot(sizes=sizes, label=labels, alpha=.8)
-plt.title('Treemap of Market Value (Shares Outstanding * Price)')
-plt.axis('off')
-st.pyplot(plt)  # Display the plot in Streamlit
+labels = [f"{ticker}\n{format_large_number(d['latest']['Close'] * d['outstanding_shares'])}" for ticker, d in data.items()]
+
+try:
+    plt.figure(figsize=(12, 8))
+    squarify.plot(sizes=sizes, label=labels, alpha=.8)
+    plt.title('Treemap of Market Value (Shares Outstanding * Price)')
+    plt.axis('off')
+    st.pyplot(plt)  # Display the plot in Streamlit
+except Exception as e:
+    st.error(f"Error creating Treemap chart: {e}")
