@@ -106,7 +106,7 @@ def create_bar_plot(data, metric, title):
     df = pd.DataFrame(data).T
     df = df.sort_values(by=metric, ascending=False)
     
-    plt.figure(figsize=(20, 10))  # Increased height for better label visibility
+    plt.figure(figsize=(14, 18))  # Increased height for better label visibility
     sns.barplot(x=df[metric], y=df.index, palette="viridis")
     plt.title(title, fontsize=18)
     plt.xlabel(f'{metric} (%)', fontsize=16)
