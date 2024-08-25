@@ -6,7 +6,7 @@ import numpy as np
 import datetime as dt
 import streamlit as st
 
-# Lista de tickers y datos de acciones en circulación
+# List of tickers and shares outstanding data
 tickers = [
     "GGAL.BA", "YPFD.BA", "PAMP.BA", "TXAR.BA", "ALUA.BA", "CRES.BA", "SUPV.BA", "CEPU.BA", "BMA.BA",
     "TGSU2.BA", "TRAN.BA", "EDN.BA", "LOMA.BA", "MIRG.BA", "DGCU2.BA", "BBAR.BA", "MOLI.BA", "TGNO4.BA",
@@ -18,7 +18,7 @@ tickers = [
     "RIGO.BA", "MTR.BA"
 ]
 
-# Datos de acciones en circulación
+# Shares outstanding data
 shares_outstanding = {
     "GGAL.BA": 1193470439, "YPFD.BA": 393312793.1, "PAMP.BA": 1383644606, "TXAR.BA": 4517094019,
     "ALUA.BA": 2800000000, "CRES.BA": 592172573.1, "SUPV.BA": 394984130.2, "CEPU.BA": 1514022252,
@@ -39,25 +39,25 @@ shares_outstanding = {
     "MTR.BA": 122787764
 }
 
-# Función para obtener datos
+# Function to fetch data
 def fetch_data(tickers, start_date):
     data = {}
     for ticker in tickers:
-        # Obtener datos
+        # Fetch data
         stock_data = yf.Ticker(ticker)
         df = stock_data.history(start=start_date - dt.timedelta(days=30), end=start_date + dt.timedelta(days=1))
         df = df.dropna()
 
-        # Asegurarse de tener al menos 2 días de datos
+        # Ensure we have at least 2 days of data
         if len(df) < 2:
-            print(f"No hay suficientes datos para {ticker}")
+            print(f"Not enough data for {ticker}")
             continue
         
-        # Seleccionar los dos últimos días (el día seleccionado y el día de negociación anterior)
+        # Select the latest two days (the selected day and the previous trading day)
         latest_data = df.iloc[-1]
         previous_data = df.iloc[-2]
         
-        # Calcular variación porcentual del precio
+        # Calculate percentage price variation
         price_variation = (latest_data['Close'] - previous_data['Close']) / previous_data['Close'] * 100
         
         data[ticker] = {
@@ -67,27 +67,27 @@ def fetch_data(tickers, start_date):
         }
     return data
 
-# Establecer las fechas mínimas y máximas para el widget del calendario
+# Set the minimum and maximum dates for the calendar widget
 min_date = dt.datetime(2000, 1, 1)
 max_date = dt.datetime.now()
 
-# Streamlit: El usuario selecciona una fecha con un rango más amplio
-st.title("Análisis de Datos de Acciones")
+# Streamlit: User selects a date with a wider range
+st.title("Stock Data Analysis")
 selected_date = st.date_input(
-    "Selecciona una fecha",
-    value=max_date,  # Valor predeterminado a la fecha actual
-    min_value=min_date,  # Permitir fechas desde el año 2000
-    max_value=max_date  # Hasta la fecha actual
+    "Choose a date",
+    value=max_date,  # Default value to today's date
+    min_value=min_date,  # Allow dates back to 2000
+    max_value=max_date  # Up to the current date
 )
 
-# Obtener los datos
+# Fetch the data
 try:
     data = fetch_data(tickers, selected_date)
 except Exception as e:
-    st.error(f"Error al obtener datos: {e}")
+    st.error(f"Error fetching data: {e}")
     st.stop()
 
-# Limpiar datos
+# Clean data
 def clean_data(data):
     clean_data = {}
     for ticker, d in data.items():
@@ -97,16 +97,16 @@ def clean_data(data):
 
 data = clean_data(data)
 
-# Función para crear gráficos de barras
+# Function to create bar plots
 def create_bar_plot(data, metric, title):
-    # Filtrar tickers sin datos
+    # Filter out tickers with no data
     data = {ticker: info for ticker, info in data.items() if not np.isnan(info[metric])}
     
-    # Convertir datos a DataFrame para facilitar el gráfico
+    # Convert data to DataFrame for easy plotting
     df = pd.DataFrame(data).T
     df = df.sort_values(by=metric, ascending=False)
     
-    plt.figure(figsize=(14, 18))  # Altura aumentada para mejor visibilidad de etiquetas
+    plt.figure(figsize=(14, 18))  # Increased height for better label visibility
     sns.barplot(x=df[metric], y=df.index, palette="viridis")
     plt.title(title, fontsize=18)
     plt.xlabel(f'{metric} (%)', fontsize=16)
@@ -116,10 +116,11 @@ def create_bar_plot(data, metric, title):
     plt.grid(True, linestyle='--', linewidth=0.7)
     st.pyplot(plt)
 
-# Crear gráficos de barras
+# Create bar plots
 try:
-    create_bar_plot(data, 'price_variation', 'Tickers con el Mayor Aumento Porcentual')
-    create_bar_plot(data, 'max_min_diff', 'Tickers con la Mayor Diferencia Porcentual Entre Precios Máximos y Mínimos')
-    create_bar_plot(data, 'close_open_diff', 'Tickers con la Mayor Diferencia Porcentual Entre Precios de Cierre y Apertura')
+    create_bar_plot(data, 'price_variation', 'Tickers with the Highest Percentage Increase')
+    create_bar_plot(data, 'price_variation', 'Tickers with the Highest Percentage Decrease')
+    create_bar_plot(data, 'max_min_diff', 'Tickers with the Highest Percentage Difference Between Max and Min Prices')
+    create_bar_plot(data, 'close_open_diff', 'Tickers with the Highest Percentage Difference Between Closing and Opening Prices')
 except Exception as e:
-    st.error(f"Error al crear gráficos: {e}")
+    st.error(f"Error creating plots: {e}")
