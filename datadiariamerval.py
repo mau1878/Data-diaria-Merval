@@ -99,8 +99,12 @@ data = clean_data(data)
 
 # Function to create bar plots
 def create_bar_plot(data, metric, title):
-    # Filter out tickers with no data
-    data = {ticker: info for ticker, info in data.items() if not np.isnan(info[metric])}
+    # Filter out tickers with no data or zero value for the metric
+    data = {ticker: info for ticker, info in data.items() if not np.isnan(info[metric]) and info[metric] != 0}
+    
+    if not data:
+        st.warning(f"No data to display for {title}")
+        return
     
     # Convert data to DataFrame for easy plotting
     df = pd.DataFrame(data).T
