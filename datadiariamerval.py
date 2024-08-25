@@ -119,7 +119,6 @@ def create_bar_plot(data, metric, title):
 # Create bar plots
 try:
     create_bar_plot(data, 'price_variation', 'Tickers with the Highest Percentage Increase')
-    create_bar_plot(data, 'price_variation', 'Tickers with the Highest Percentage Decrease')
     create_bar_plot(data, 'max_min_diff', 'Tickers with the Highest Percentage Difference Between Max and Min Prices')
     create_bar_plot(data, 'close_open_diff', 'Tickers with the Highest Percentage Difference Between Closing and Opening Prices')
 except Exception as e:
