@@ -42,6 +42,8 @@ shares_outstanding = {
 # Function to fetch data
 def fetch_data(tickers, start_date):
     data = {}
+    latest_dates = {}
+    
     for ticker in tickers:
         # Fetch data
         stock_data = yf.Ticker(ticker)
@@ -65,7 +67,11 @@ def fetch_data(tickers, start_date):
             'max_min_diff': (latest_data['High'] - latest_data['Low']) / latest_data['Low'] * 100,
             'close_open_diff': (latest_data['Close'] - latest_data['Open']) / latest_data['Open'] * 100
         }
-    return data
+        
+        # Store the latest date for this ticker
+        latest_dates[ticker] = latest_data.name
+
+    return data, latest_dates
 
 # Set the minimum and maximum dates for the calendar widget
 min_date = dt.datetime(2000, 1, 1)
@@ -82,7 +88,7 @@ selected_date = st.date_input(
 
 # Fetch the data
 try:
-    data = fetch_data(tickers, selected_date)
+    data, latest_dates = fetch_data(tickers, selected_date)
 except Exception as e:
     st.error(f"Error fetching data: {e}")
     st.stop()
@@ -98,7 +104,7 @@ def clean_data(data):
 data = clean_data(data)
 
 # Function to create bar plots
-def create_bar_plot(data, metric, title):
+def create_bar_plot(data, metric, title, date):
     # Filter out tickers with no data or zero value for the metric
     data = {ticker: info for ticker, info in data.items() if not np.isnan(info[metric]) and info[metric] != 0}
     
@@ -112,7 +118,7 @@ def create_bar_plot(data, metric, title):
     
     plt.figure(figsize=(14, 18))  # Increased height for better label visibility
     sns.barplot(x=df[metric], y=df.index, palette="viridis")
-    plt.title(title, fontsize=18)
+    plt.title(f"{title} (Data as of {date.strftime('%Y-%m-%d')})", fontsize=18)
     plt.xlabel(f'{metric} (%)', fontsize=16)
     plt.ylabel('Ticker', fontsize=16)
     plt.xticks(fontsize=12)
@@ -122,8 +128,9 @@ def create_bar_plot(data, metric, title):
 
 # Create bar plots
 try:
-    create_bar_plot(data, 'price_variation', 'Tickers with the Highest Percentage Increase')
-    create_bar_plot(data, 'max_min_diff', 'Tickers with the Highest Percentage Difference Between Max and Min Prices')
-    create_bar_plot(data, 'close_open_diff', 'Tickers with the Highest Percentage Difference Between Closing and Opening Prices')
+    latest_date = max(latest_dates.values())  # Get the most recent date among all tickers
+    create_bar_plot(data, 'price_variation', 'Tickers with the Highest Percentage Increase', latest_date)
+    create_bar_plot(data, 'max_min_diff', 'Tickers with the Highest Percentage Difference Between Max and Min Prices', latest_date)
+    create_bar_plot(data, 'close_open_diff', 'Tickers with the Highest Percentage Difference Between Closing and Opening Prices', latest_date)
 except Exception as e:
     st.error(f"Error creating plots: {e}")
