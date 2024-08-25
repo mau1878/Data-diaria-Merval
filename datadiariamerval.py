@@ -15,7 +15,7 @@ tickers = [
     "HARG.BA", "GCLA.BA", "SAMI.BA", "BOLT.BA", "MOLA.BA", "CAPX.BA", "OEST.BA", "LONG.BA", "GCDI.BA",
     "GBAN.BA", "CELU.BA", "FERR.BA", "CADO.BA", "GAMI.BA", "PATA.BA", "CARC.BA", "BPAT.BA", "RICH.BA",
     "INTR.BA", "GARO.BA", "FIPL.BA", "GRIM.BA", "DYCA.BA", "POLL.BA", "DGCE.BA", "DOME.BA", "ROSE.BA",
-    "RIGO.BA", "MTR.BA", "APBR.BA"
+    "RIGO.BA", "MTR.BA"
 ]
 
 # Shares outstanding data
@@ -106,7 +106,7 @@ def create_bar_plot(data, metric, title):
     df = pd.DataFrame(data).T
     df = df.sort_values(by=metric, ascending=False)
     
-    plt.figure(figsize=(14, 10))  # Increased height for better label visibility
+    plt.figure(figsize=(20, 10))  # Increased height for better label visibility
     sns.barplot(x=df[metric], y=df.index, palette="viridis")
     plt.title(title, fontsize=18)
     plt.xlabel(f'{metric} (%)', fontsize=16)
