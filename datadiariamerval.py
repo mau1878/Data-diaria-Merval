@@ -78,7 +78,7 @@ min_date = dt.datetime(2000, 1, 1)
 max_date = dt.datetime.now()
 
 # Streamlit: User selects a date with a wider range
-st.title("Stock Data Analysis")
+st.title("Data en pesos del Merval para la fecha elegida (o de la rueda inmediatamente anterior a dicha fecha en caso de feriados o fines de semana")
 selected_date = st.date_input(
     "Choose a date",
     value=max_date,  # Default value to today's date
