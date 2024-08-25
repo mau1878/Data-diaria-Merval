@@ -67,9 +67,18 @@ def fetch_data(tickers, start_date):
         }
     return data
 
-# Streamlit: User selects a date
+# Set the minimum and maximum dates for the calendar widget
+min_date = dt.datetime(2000, 1, 1)
+max_date = dt.datetime.now()
+
+# Streamlit: User selects a date with a wider range
 st.title("Stock Data Analysis")
-selected_date = st.date_input("Choose a date", dt.datetime(2024, 8, 22))
+selected_date = st.date_input(
+    "Choose a date",
+    value=max_date,  # Default value to today's date
+    min_value=min_date,  # Allow dates back to 2000
+    max_value=max_date  # Up to the current date
+)
 
 # Fetch the data
 try:
