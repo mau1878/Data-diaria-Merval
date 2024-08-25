@@ -90,6 +90,9 @@ data = clean_data(data)
 
 # Function to create bar plots
 def create_bar_plot(data, metric, title):
+    # Filter out tickers with no data
+    data = {ticker: info for ticker, info in data.items() if not np.isnan(info[metric])}
+    
     # Convert data to DataFrame for easy plotting
     df = pd.DataFrame(data).T
     df = df.sort_values(by=metric, ascending=False)
