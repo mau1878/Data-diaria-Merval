@@ -124,6 +124,9 @@ def create_bar_plot(data, metric, title, date):
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
     plt.grid(True, linestyle='--', linewidth=0.7)
+        # Add subtle watermark
+    plt.text(0.5, 0.02, "MTaurus - X:MTaurus_ok", fontsize=12, color='gray',
+             ha='center', va='center', alpha=0.5, transform=plt.gcf().transFigure)
     st.pyplot(plt)
 
 # Create bar plots
